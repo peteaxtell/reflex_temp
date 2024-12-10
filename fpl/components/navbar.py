@@ -6,16 +6,7 @@ from .. import styles
 
 
 def navbar_item(url: str, icon: str) -> rx.Component:
-    """Sidebar item.
 
-    Args:
-        text: The text of the item.
-        url: The URL of the item.
-
-    Returns:
-        rx.Component: The sidebar item component.
-    """
-    # Whether the item is active.
     active = (rx.State.router.page.path == url.lower()) | (
         (rx.State.router.page.path == "/") & icon == "ordered-list"
     )
@@ -40,12 +31,7 @@ def navbar_item(url: str, icon: str) -> rx.Component:
 
 
 def navbar() -> rx.Component:
-    """The sidebar.
 
-    Returns:
-        The sidebar component.
-    """
-    # Get all the decorated pages and add them to the sidebar.
     from reflex.page import get_decorated_pages
 
     return rx.flex(

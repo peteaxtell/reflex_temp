@@ -4,7 +4,8 @@ import polars as pl
 import reflex as rx
 from reflex_ag_grid.ag_grid import ColumnDef, ag_grid
 
-from ..data.api import (api_client, get_gameweek, get_league_picks,
+from ..components.page_header import page_header
+from ..data.api import (api_client, current_gameweek_id, get_league_picks,
                         get_league_table, get_player_points,
                         latest_player_activity)
 from ..templates.template import template
@@ -12,15 +13,14 @@ from ..templates.template import template
 
 class State(rx.State):
 
+    gameweek_id: int
     live_update_data: list[dict] = []
     player_points_cache: list[dict] = []
-    gameweek_id: int
-    gameweek_deadline: str
 
     @rx.event(background=True)
     async def get_data(self):
         """
-        Get latest data from the API
+        Periodically get latest point scoring events from the API
         """
 
         while True:
@@ -53,9 +53,11 @@ class State(rx.State):
 
     @rx.event()
     def set_gameweek(self):
-        gw = get_gameweek()
-        self.gameweek_id = gw["gameweek_id"]
-        self.gameweek_deadline = gw["deadline_time"].strftime("%d %b %H:%M")
+        """
+        Sets the current gameweek id
+        """
+
+        self.gameweek_id = current_gameweek_id()
 
 
 badge = rx.vars.function.ArgsFunctionOperation.create(
@@ -115,33 +117,35 @@ def col_defs(mobile: bool) -> list[ColumnDef]:
     return cols
 
 
-def grid(mobile: bool):
+def grid(mobile: bool) -> rx.Component:
     """
-    Returns a grid
+    Returns an AG Grid
     """
 
     return ag_grid(
         id="ag-live",
-        column_defs=col_defs(mobile),
-        row_data=State.live_update_data,
         auto_size_strategy={"type": "SizeColumnsToFitGridStrategy"},
-        theme="quartz",
-        width="100%",
+        column_defs=col_defs(mobile),
         height="calc(100dvh - 240px)",
         overflow="auto",
-        style={"--ag-row-height": "75px !important;"}
+        row_data=State.live_update_data,
+        style={"--ag-row-height": "75px !important;"},
+        theme="quartz",
+        width="100%",
     )
 
 
 @template(route="/live-updates", title="Live Updates", on_load=[State.set_gameweek, State.get_data])
 def live():
+    """
+    Returns the live points updates page
+    """
+
     return rx.flex(
-        rx.heading("Live Updates"),
-        rx.text(f"Gameweek {State.gameweek_id}", size="2"),
-        rx.divider(width="100%"),
+        page_header("Live Updates", State.gameweek_id),
         rx.mobile_only(grid(True)),
         rx.tablet_and_desktop(grid(False)),
-        spacing="4",
         direction="column",
+        spacing="4",
         width="100%"
     )

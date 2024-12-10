@@ -13,7 +13,24 @@ def api_client() -> httpx.Client:
     Returns a client for connecting to the FPL API
     """
 
-    return httpx.Client(base_url="https://fantasy.premierleague.com/api", event_hooks={"response": [lambda x: x.raise_for_status()]})
+    return httpx.Client(
+        base_url="https://fantasy.premierleague.com/api",
+        event_hooks={"response": [lambda x: x.raise_for_status()]}
+    )
+
+
+def current_gameweek_id() -> int:
+    """
+    Returns the current gameweek id
+    """
+
+    from .cache import GAMEWEEKS_DF
+
+    return (
+        GAMEWEEKS_DF.filter(pl.col("deadline_time") <= datetime.now(pytz.UTC))
+        .sort("deadline_time", descending=True)
+        .row(0)[0]
+    )
 
 
 def get_entry_history(client: httpx.Client, entry_id: int) -> pl.DataFrame:
@@ -21,26 +38,40 @@ def get_entry_history(client: httpx.Client, entry_id: int) -> pl.DataFrame:
     Returns the points by week for the entry
     """
 
-    df = (pl.DataFrame(client.get(f"entry/{entry_id}/history/").json()["current"])
-          .with_columns(entry_id=entry_id)
-          .rename({"event": "gameweek_id"})
-          .select(["gameweek_id", "entry_id", "total_points"])
-          )
+    col_map = {"event": "gameweek_id"}
 
-    return df
+    return_fields = (
+        "gameweek_id",
+        "entry_id",
+        "total_points"
+    )
+
+    api_data = client.get(f"entry/{entry_id}/history/").json()["current"]
+
+    return (
+        pl.DataFrame(api_data)
+        .with_columns(entry_id=entry_id)
+        .rename(col_map)
+        .select(return_fields)
+    )
 
 
 def get_entry_picks(client: httpx.Client, entry_id: int, gameweek_id: int) -> pl.DataFrame:
     """
-    Returns the players picked for a gameweek
+    Returns the gameweek picks for an entry
     """
 
-    df = (pl.DataFrame(client.get(f"entry/{entry_id}/event/{gameweek_id}/picks/").json()["picks"])
-          .with_columns(entry_id=entry_id)
-          .rename({"element": "player_id"})
-          )
+    col_map = {
+        "element": "player_id"
+    }
 
-    return df
+    api_data = client.get(f"entry/{entry_id}/event/{gameweek_id}/picks/").json()["picks"]
+
+    return (
+        pl.DataFrame(api_data)
+        .with_columns(entry_id=entry_id)
+        .rename(col_map)
+    )
 
 
 def get_entry_points(client: httpx.Client, entry_id: int, gameweek_id: int) -> pl.DataFrame:
@@ -48,61 +79,113 @@ def get_entry_points(client: httpx.Client, entry_id: int, gameweek_id: int) -> p
     Returns the total points for an entry at the end of a gameweek
     """
 
-    return (pl.DataFrame(client.get(f"entry/{entry_id}/event/{gameweek_id}/picks/").json()["entry_history"])
-            .with_columns(entry_id=entry_id).cast(pl.Int32)
-            .select(["entry_id", "total_points"])
-            )
+    return_fields = (
+        "entry_id",
+        "total_points"
+    )
+
+    api_data = client.get(f"entry/{entry_id}/event/{gameweek_id}/picks/").json()["entry_history"]
+
+    return (
+        pl.DataFrame(api_data)
+        .with_columns(entry_id=entry_id).cast(pl.Int32)
+        .select(return_fields)
+    )
 
 
 def get_fixtures(client: httpx.Client, gameweek_id: int) -> pl.DataFrame:
     """
-    Returns the fixtures for the gameweek
+    Returns the fixtures and scores for the gameweek
     """
 
     from .cache import TEAMS_DF
 
-    return (pl.DataFrame(client.get("fixtures/").json())
-            .filter(pl.col("event") == gameweek_id)
-            .rename({"team_a": "away_team_id", "team_a_score": "away_team_score", "team_h": "home_team_id", "team_h_score": "home_team_score"})
-            .with_columns(pl.col("kickoff_time").str.strptime(pl.Datetime, "%Y-%m-%dT%H:%M:%SZ").alias("kickoff_time_d"))
-            .sort(pl.col("kickoff_time_d"))
-            .with_columns(pl.col("kickoff_time_d").dt.strftime("%a %d %b %H:%M").alias("kickoff_time"))
-            .with_columns(pl.when(pl.col("finished_provisional") == True)
-                          .then(pl.lit("FT"))
-                          .otherwise(pl.concat_str(pl.col("minutes"), pl.lit("'"))).alias("minutes"))
-            .with_columns(pl.when(pl.col("kickoff_time_d") <= datetime.now()).then(pl.col("minutes")).otherwise(pl.col("kickoff_time")).alias("time"))
-            .join(TEAMS_DF, left_on="away_team_id", right_on="team_id")
-            .rename({"team_name": "away_team_name", "logo": "away_team_logo"})
-            .join(TEAMS_DF, left_on="home_team_id", right_on="team_id")
-            .rename({"team_name": "home_team_name", "logo": "home_team_logo"})
-            .select(["id", "away_team_name", "away_team_score", "home_team_name", "home_team_score", "kickoff_time", "kickoff_time_d", "minutes", "away_team_logo", "home_team_logo", "time"])
-            )
+    col_map = {
+        "team_h": "home_team_id",
+        "team_h_score": "home_team_score",
+        "team_a": "away_team_id",
+        "team_a_score": "away_team_score",
+    }
 
+    return_fields = (
+        "id",
+        "kickoff_time",
+        "status",
+        "home_team_name",
+        "home_team_score",
+        "home_team_logo",
+        "away_team_name",
+        "away_team_score",
+        "away_team_logo"
+    )
 
-def get_gameweek() -> int:
-    """
-    Returns the current gameweek
-    """
-    from .cache import GAMEWEEKS_DF
-    return GAMEWEEKS_DF.filter(pl.col("deadline_time") <= datetime.now(pytz.UTC)).sort("deadline_time", descending=True).row(0, named=True)
+    # convert to date for sorting
+    kickoff_time = pl.col("kickoff_time").str.strptime(pl.Datetime, "%Y-%m-%dT%H:%M:%SZ").alias("kickoff_time")
+
+    # status column will contain elapsed time of scheduled kick-off e.g. 59' / FT / Sat 12 Sep 15:00
+    status = (
+        pl.when(pl.col("finished_provisional") == True)
+        .then(pl.lit("FT"))
+        .otherwise(
+            pl.when(pl.col("kickoff_time") <= datetime.now())
+            .then(pl.concat_str(
+                pl.col("minutes"),
+                pl.lit("'")
+            ))
+            .otherwise(pl.col("kickoff_time").dt.strftime("%a %d %b %H:%M"))
+        )
+        .alias("status")
+    )
+
+    api_data = client.get("fixtures/").json()
+
+    return (
+        pl.DataFrame(api_data)
+        .filter(pl.col("event") == gameweek_id)
+        .with_columns(kickoff_time)
+        .with_columns(status)
+        .rename(col_map)
+        .join(TEAMS_DF, left_on="away_team_id", right_on="team_id")
+        .rename({"team_name": "away_team_name", "logo": "away_team_logo"})
+        .join(TEAMS_DF, left_on="home_team_id", right_on="team_id")
+        .rename({"team_name": "home_team_name", "logo": "home_team_logo"})
+        .sort(pl.col("kickoff_time"))
+        .select(return_fields)
+    )
 
 
 def get_league_picks(client: httpx.Client, gameweek_id: int, league_df: pl.DataFrame) -> pl.DataFrame:
     """
     Returns the gameweek picks for all teams in the league
     """
+
     from .cache import PLAYERS_DF
 
+    return_fields = (
+        "entry_id",
+        "manager_name",
+        "team_name",
+        "player_id",
+        "web_name",
+        "position_name",
+        "position",
+        "is_captain",
+        "multiplier",
+        "img_url"
+    )
+
+    # get picks for each entry in parallel
     with ThreadPoolExecutor() as executor:
         picks = list(executor.map(lambda entry_id: get_entry_picks(
             client, entry_id, gameweek_id), league_df["entry_id"].to_list()))
 
-    return (pl.concat(picks)
-            .join(PLAYERS_DF, on="player_id")
-            .join(league_df, on="entry_id")
-            .filter(pl.col("position") < 12)
-            .select(["entry_id", "manager_name", "web_name", "team_name", "position_name", "player_id", "multiplier", "is_captain", "position", "img_url"])
-            )
+    return (
+        pl.concat(picks)
+        .join(PLAYERS_DF, on="player_id")
+        .join(league_df, on="entry_id")
+        .filter(pl.col("position") < 12)
+        .select(return_fields)
+    )
 
 
 def get_league_table(client: httpx.Client) -> pl.DataFrame:
@@ -110,11 +193,26 @@ def get_league_table(client: httpx.Client) -> pl.DataFrame:
     Returns the current league table
     """
 
-    return (pl.DataFrame(client.get("leagues-classic/737576/standings/").json()["standings"]["results"])
-            .rename({"entry": "entry_id", "player_name": "manager_name"})
-            .select(["entry_id", "manager_name", "entry_name", "total"])
-            .with_columns(pl.col("entry_id").cast(pl.Int32))
-            )
+    col_map = {
+        "entry": "entry_id",
+        "player_name": "manager_name",
+    }
+
+    return_fields = (
+        "entry_id",
+        "manager_name",
+        "entry_name",
+        "total"
+    )
+
+    api_data = client.get("leagues-classic/737576/standings/").json()["standings"]["results"]
+
+    return (
+        pl.DataFrame(api_data)
+        .rename(col_map)
+        .with_columns(pl.col("entry_id").cast(pl.Int32))
+        .select(return_fields)
+    )
 
 
 def get_player_points(client: httpx.Client, gameweek_id: int) -> pl.DataFrame:
@@ -122,22 +220,34 @@ def get_player_points(client: httpx.Client, gameweek_id: int) -> pl.DataFrame:
     Returns the points scored by each player in a gameweek
     """
 
-    return pl.json_normalize(client.get(f"event/{gameweek_id}/live/").json()["elements"]).select([
+    col_map = {
+        "id": "player_id"
+    }
+
+    return_fields = (
         "id",
-        "stats.total_points",
-        "stats.minutes",
-        "stats.goals_scored",
         "stats.assists",
+        "stats.bonus",
         "stats.clean_sheets",
         "stats.goals_conceded",
+        "stats.goals_scored",
+        "stats.minutes",
         "stats.own_goals",
-        "stats.penalties_saved",
         "stats.penalties_missed",
-        "stats.yellow_cards",
+        "stats.penalties_saved",
         "stats.red_cards",
         "stats.saves",
-        "stats.bonus"
-    ]).rename({"id": "player_id"})
+        "stats.total_points",
+        "stats.yellow_cards",
+    )
+
+    api_data = client.get(f"event/{gameweek_id}/live/").json()["elements"]
+
+    return (
+        pl.json_normalize(api_data)
+        .select(return_fields)
+        .rename(col_map)
+    )
 
 
 def latest_player_activity(cache: pl.DataFrame, unique_player_points: pl.DataFrame, event_id: int) -> pl.DataFrame | None:
@@ -145,15 +255,36 @@ def latest_player_activity(cache: pl.DataFrame, unique_player_points: pl.DataFra
     Returns the latest events and associated managers for players whose points have changed since the last refresh
     """
 
+    col_map = {
+        "position_name": "position",
+        "stats.total_points": "total_points",
+        "team_name": "team",
+        "web_name": "player",
+    }
+
+    return_fields = (
+        "id",
+        "event",
+        "img_url"
+        "player",
+        "points",
+        "position",
+        "team",
+        "time",
+        "total_points",
+    )
+
     event_time = datetime.now()
 
     # get players whose points have changed since last refresh
-    points_diff = (unique_player_points
-                   .join(cache, on="player_id", suffix="_cache")
-                   .sort("team_name", "web_name", descending=True)
-                   .filter(pl.col("stats.total_points") != pl.col("stats.total_points_cache")))
+    points_diff = (
+        unique_player_points
+        .join(cache, on="player_id", suffix="_cache")
+        .sort("team_name", "web_name", descending=True)
+        .filter(pl.col("stats.total_points") != pl.col("stats.total_points_cache"))
+    )
 
-    activity_dfs = []
+    activity_dfs: list[pl.DataFrame] = []
 
     for config in SCORING_CONFIG:
         # get rows for scoring event
@@ -183,12 +314,8 @@ def latest_player_activity(cache: pl.DataFrame, unique_player_points: pl.DataFra
     # add incrementing integers as id
     activity_df = activity_df.with_columns(pl.arange(event_id, event_id+activity_df.height).alias("id"))
 
-    return (activity_df.rename(
-        {
-            "web_name": "player",
-            "team_name": "team",
-            "position_name": "position",
-            "stats.total_points": "total_points"
-        })
-        .select(["id", "time", "player", "team", "position", "event", "points", "total_points", "img_url"])
+    return (
+        activity_df
+        .rename(col_map)
+        .select(return_fields)
     )

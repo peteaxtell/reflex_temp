@@ -1,2 +1,4 @@
+polars
+pytz
 reflex>=0.5.4
 reflex_ag_grid

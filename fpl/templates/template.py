@@ -1,5 +1,3 @@
-"""Common templates used between pages in the app."""
-
 from __future__ import annotations
 
 from typing import Callable
@@ -10,7 +8,6 @@ from .. import styles
 from ..components.navbar import navbar
 from ..components.sidebar import sidebar
 
-# Meta tags for the app.
 default_meta = [
     {
         "name": "viewport",
@@ -19,30 +16,11 @@ default_meta = [
 ]
 
 
-def menu_item_link(text, href):
-    return rx.menu.item(
-        rx.link(
-            text,
-            href=href,
-            width="100%",
-            color="inherit",
-        ),
-        _hover={
-            "color": styles.accent_color,
-            "background_color": styles.accent_text_color,
-        },
-    )
-
-
 class ThemeState(rx.State):
-    """The state for the theme of the app."""
 
     accent_color: str = "blue"
-
     gray_color: str = "gray"
-
     radius: str = "large"
-
     scaling: str = "100%"
 
 
@@ -54,30 +32,8 @@ def template(
     script_tags: list[rx.Component] | None = None,
     on_load: rx.EventHandler | list[rx.EventHandler] | None = None,
 ) -> Callable[[Callable[[], rx.Component]], rx.Component]:
-    """The template for each page of the app.
-
-    Args:
-        route: The route to reach the page.
-        title: The title of the page.
-        description: The description of the page.
-        meta: Additionnal meta to add to the page.
-        on_load: The event handler(s) called when the page load.
-        script_tags: Scripts to attach to the page.
-
-    Returns:
-        The template with the page content.
-    """
 
     def decorator(page_content: Callable[[], rx.Component]) -> rx.Component:
-        """The template for each page of the app.
-
-        Args:
-            page_content: The content of the page.
-
-        Returns:
-            The template with the page content.
-        """
-        # Get the meta tags for the page.
         all_meta = [*default_meta, *(meta or [])]
 
         def templated_page():
@@ -125,9 +81,9 @@ def template(
         def theme_wrap():
             return rx.theme(
                 templated_page(),
-                has_background=True,
                 accent_color=ThemeState.accent_color,
                 gray_color=ThemeState.gray_color,
+                has_background=True,
                 radius=ThemeState.radius,
                 scaling=ThemeState.scaling,
             )

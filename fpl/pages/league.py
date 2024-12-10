@@ -5,21 +5,21 @@ import polars as pl
 import reflex as rx
 from reflex_ag_grid.ag_grid import ColumnDef, ag_grid
 
-from ..data.api import (api_client, get_entry_points, get_gameweek,
+from ..components.page_header import page_header
+from ..data.api import (api_client, current_gameweek_id, get_entry_points,
                         get_league_picks, get_league_table, get_player_points)
 from ..templates.template import template
 
 
 class State(rx.State):
 
-    data: list[dict] = [{}]
+    data: list[dict] = []
     gameweek_id: int
-    gameweek_deadline: str
 
     @rx.event(background=True)
     async def get_data(self):
         """
-        Get latest data from the API
+        Periodically get latest league standings from the API
         """
 
         while True:
@@ -68,13 +68,15 @@ class State(rx.State):
 
                 self.data = df.to_dicts()
 
-            await asyncio.sleep(5)
+            await asyncio.sleep(500)
 
     @rx.event()
     def set_gameweek(self):
-        gw = get_gameweek()
-        self.gameweek_id = gw["gameweek_id"]
-        self.gameweek_deadline = gw["deadline_time"].strftime("%d %b %H:%M")
+        """
+        Sets the current gameweek id
+        """
+
+        self.gameweek_id = current_gameweek_id()
 
 
 def col_defs(mobile: bool) -> list[ColumnDef]:
@@ -113,32 +115,34 @@ def col_defs(mobile: bool) -> list[ColumnDef]:
     return cols
 
 
-def grid(mobile: bool):
+def grid(mobile: bool) -> rx.Component:
     """
-    Returns a grid
+    Returns an AG Grid
     """
 
     return ag_grid(
         id="ag-league",
-        column_defs=col_defs(mobile),
-        row_data=State.data,
         auto_size_strategy={"type": "SizeColumnsToFitGridStrategy"},
+        column_defs=col_defs(mobile),
+        height="calc(100dvh - 240px)",
+        overflow="auto",
+        row_data=State.data,
         theme="quartz",
         width="100%",
-        height="calc(100dvh - 240px)",
-        overflow="auto"
     )
 
 
 @template(route="/", title="League Table", on_load=[State.set_gameweek, State.get_data])
 def league():
+    """
+    Returns the league standings page
+    """
+
     return rx.flex(
-        rx.heading("League Table"),
-        rx.text(f"Gameweek {State.gameweek_id}", size="2"),
-        rx.divider(width="100%"),
+        page_header("League Table", State.gameweek_id),
         rx.mobile_only(grid(True)),
         rx.tablet_and_desktop(grid(False)),
-        spacing="4",
         direction="column",
+        spacing="4",
         width="100%"
     )

@@ -6,13 +6,8 @@ from .. import styles
 
 
 def sidebar_header() -> rx.Component:
-    """Sidebar header.
 
-    Returns:
-        The sidebar header component.
-    """
     return rx.hstack(
-        # The logo.
         rx.color_mode_cond(
             rx.image(src="/logo_light_mode.png", height="10em"),
             rx.image(src="/logo_dark_mode.png", height="10em"),
@@ -26,11 +21,7 @@ def sidebar_header() -> rx.Component:
 
 
 def sidebar_footer() -> rx.Component:
-    """Sidebar footer.
 
-    Returns:
-        The sidebar footer component.
-    """
     return rx.hstack(
         rx.color_mode.button(style={"opacity": "0.8", "scale": "0.95"}),
         justify="start",
@@ -41,16 +32,7 @@ def sidebar_footer() -> rx.Component:
 
 
 def sidebar_item(text: str, url: str, icon: str) -> rx.Component:
-    """Sidebar item.
 
-    Args:
-        text: The text of the item.
-        url: The URL of the item.
-
-    Returns:
-        rx.Component: The sidebar item component.
-    """
-    # Whether the item is active.
     active = (rx.State.router.page.path == url.lower()) | (
         (rx.State.router.page.path == "/") & text == "League Table"
     )
@@ -97,13 +79,6 @@ def sidebar_item(text: str, url: str, icon: str) -> rx.Component:
 
 
 def sidebar() -> rx.Component:
-    """The sidebar.
-
-    Returns:
-        The sidebar component.
-    """
-    # Get all the decorated pages and add them to the sidebar.
-    from reflex.page import get_decorated_pages
 
     return rx.flex(
         rx.vstack(

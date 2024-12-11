@@ -4,6 +4,7 @@ import polars as pl
 import reflex as rx
 from reflex_ag_grid.ag_grid import ColumnDef, ag_grid
 
+from ..components.league_picker import LeagueSelectState
 from ..components.page_header import page_header
 from ..data.api import (api_client, current_gameweek_id, get_league_picks,
                         get_league_table, get_player_points,
@@ -25,9 +26,12 @@ class State(rx.State):
 
         while True:
             async with self:
+
+                league_selector = await self.get_state(LeagueSelectState)
+
                 with api_client() as client:
 
-                    league_df = get_league_table(client)
+                    league_df = get_league_table(client, league_selector.selected_league.id)
                     points_df = get_player_points(client, self.gameweek_id)
                     picked_players_df = get_league_picks(client, self.gameweek_id, league_df)
 

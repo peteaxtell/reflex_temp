@@ -100,7 +100,7 @@ def sidebar() -> rx.Component:
             padding="1em",
             padding_top="2em"
         ),
-        display=["none", "none", "none", "flex", "flex", "flex"],
+        display=rx.breakpoints(initial="none", md="flex"),
         max_width=styles.sidebar_width,
         width="auto",
         height="100%",

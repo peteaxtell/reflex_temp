@@ -47,7 +47,7 @@ def navbar() -> rx.Component:
             padding="1em",
             spacing="7"
         ),
-        display=["flex", "flex", "flex", "none", "none", "none"],
+        display=rx.breakpoints(initial="flex", md="none"),
         width="100%",
         height="100%",
         position="sticky",

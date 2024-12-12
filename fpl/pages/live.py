@@ -30,29 +30,30 @@ class State(rx.State):
 
                 league_selector = await self.get_state(LeagueSelectState)
 
-                with api_client() as client:
+                if league_selector.selected_league:
+                    with api_client() as client:
 
-                    league_df = get_league_table(client, league_selector.selected_league.id)
-                    points_df = get_player_points(client, self.gameweek_id)
-                    picked_players_df = get_league_picks(client, self.gameweek_id, league_df)
+                        league_df = get_league_table(client, league_selector.selected_league.id)
+                        points_df = get_player_points(client, self.gameweek_id)
+                        picked_players_df = get_league_picks(client, self.gameweek_id, league_df)
 
-                    # points for uniquely selected players for the gameweek
-                    live_player_points_df = (picked_players_df["player_id", "web_name", "position_name", "team_name", "img_url"]
-                                             .unique()
-                                             .join(points_df, on="player_id")
-                                             )
+                        # points for uniquely selected players for the gameweek
+                        live_player_points_df = (picked_players_df["player_id", "web_name", "position_name", "team_name", "img_url"]
+                                                 .unique()
+                                                 .join(points_df, on="player_id")
+                                                 )
 
-                    # can only work out new points if already have previous points in cache after first run
-                    if self.player_points_cache:
+                        # can only work out new points if already have previous points in cache after first run
+                        if self.player_points_cache:
 
-                        latest_activity_df = latest_player_activity(pl.DataFrame(
-                            self.player_points_cache.copy()), live_player_points_df, len(self.live_update_data))
+                            latest_activity_df = latest_player_activity(pl.DataFrame(
+                                self.player_points_cache.copy()), live_player_points_df, len(self.live_update_data))
 
-                        if latest_activity_df is not None:
-                            self.live_update_data = sorted(
-                                self.live_update_data + latest_activity_df.to_dicts(), key=lambda x: x["id"], reverse=True)
+                            if latest_activity_df is not None:
+                                self.live_update_data = sorted(
+                                    self.live_update_data + latest_activity_df.to_dicts(), key=lambda x: x["id"], reverse=True)
 
-                    self.player_points_cache = live_player_points_df.to_dicts()
+                        self.player_points_cache = live_player_points_df.to_dicts()
 
             await asyncio.sleep(settings.refresh_interval_secs)
 
@@ -140,6 +141,29 @@ def grid(mobile: bool) -> rx.Component:
     )
 
 
+def responsive_grid() -> rx.Component:
+    """
+    Returns an AG Grid with columns based on screen size
+    """
+
+    return rx.inset(
+        rx.mobile_only(grid(True)),
+        rx.tablet_and_desktop(grid(False)),
+    )
+
+
+def callout(text: str) -> rx.Component:
+    """
+    Returns a callout
+    """
+
+    return rx.callout(
+        text,
+        icon="info",
+        color_scheme="blue",
+    )
+
+
 @template(route="/live-updates", title="Live Updates", on_load=[State.set_gameweek, State.get_data])
 def live():
     """
@@ -148,8 +172,11 @@ def live():
 
     return rx.flex(
         page_header("Live Updates", State.gameweek_id),
-        rx.mobile_only(grid(True)),
-        rx.tablet_and_desktop(grid(False)),
+        rx.cond(
+            ~LeagueSelectState.selected_league,
+            callout("Select a league to view live updates"),
+            responsive_grid()
+        ),
         direction="column",
         spacing="4",
         width="100%"

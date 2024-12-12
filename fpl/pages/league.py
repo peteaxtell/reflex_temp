@@ -5,8 +5,6 @@ import polars as pl
 import reflex as rx
 from reflex_ag_grid.ag_grid import ColumnDef, ag_grid
 
-from fpl import settings
-
 from ..components.league_picker import LeagueSelectState
 from ..components.page_header import page_header
 from ..data.api import (api_client, current_gameweek_id, get_entry_points,
@@ -37,11 +35,6 @@ class State(rx.State):
 
                         # get entries in the league
                         league_df = get_league_table(client, league_selector.selected_league.id)
-
-                        self.missing_data = league_df.is_empty()
-
-                        if self.missing_data:
-                            continue
 
                         # get players picked for each entry in current gameweek
                         picked_players_df = get_league_picks(client, self.gameweek_id, league_df)
@@ -82,7 +75,7 @@ class State(rx.State):
 
                     self.data = df.to_dicts()
 
-            await asyncio.sleep(settings.refresh_interval_secs)
+            await asyncio.sleep(5)
 
     @rx.event()
     def set_gameweek(self):
@@ -157,7 +150,7 @@ def responsive_grid() -> rx.Component:
     )
 
 
-def missing_data_callout(text: str) -> rx.Component:
+def callout(text: str) -> rx.Component:
     """
     Returns a callout
     """
@@ -179,18 +172,9 @@ def league():
         page_header("League Table", State.gameweek_id),
         rx.cond(
             ~LeagueSelectState.selected_league,
-            missing_data_callout("Select a league to view table"),
+            callout("Select a league to view table"),
             responsive_grid()
         ),
-        # rx.cond(
-        #     LeagueSelectState.selected_league is None,
-        #     missing_data_callout("Select a league to view table"),
-        #     rx.cond(
-        #         State.missing_data,
-        #         missing_data_callout("Leauge table unavailable"),
-        #         responsive_grid()
-        #     )
-        # ),
         direction="column",
         spacing="4",
         width="100%"

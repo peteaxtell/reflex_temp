@@ -12,7 +12,7 @@ class League:
 class LeagueSelectState(rx.State):
 
     leagues: list[League] = [
-        League(id="464405", name="SS Ladzio league"),
+        League(id="464405 ", name="SS Ladzio league"),
         League(id="737576", name="The Ladzio Memorial Cup"),
         League(id="1643181", name="The Oscar & Milo Championship"),
     ]
@@ -21,6 +21,10 @@ class LeagueSelectState(rx.State):
 
     def set_selected_league(self, league_id: str):
         self.selected_league = next((l for l in self.leagues if l.id == league_id), None)
+
+    @rx.var
+    def league_display_value(self) -> str:
+        return self.selected_league.name if self.selected_league else "No League Selected"
 
     @rx.event
     def handle_submit(self, form_data: dict):
@@ -34,7 +38,7 @@ def league_badge() -> rx.Component:
 
     return rx.center(
         rx.flex(
-            rx.badge(LeagueSelectState.selected_league.name, margin="2", size="2"),
+            rx.badge(LeagueSelectState.league_display_value, margin="2", size="2"),
             league_dialog(),
             spacing="2",
             width="100%"

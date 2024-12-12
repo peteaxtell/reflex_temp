@@ -3,7 +3,6 @@
 import reflex as rx
 
 from .. import styles
-from .league_picker import league_badge
 
 
 def sidebar_header() -> rx.Component:
@@ -13,7 +12,6 @@ def sidebar_header() -> rx.Component:
             rx.image(src="/logo_light_mode.png", height="10em"),
             rx.image(src="/logo_dark_mode.png", height="10em"),
         ),
-        league_badge(),
         align="center",
         width="100%",
         padding="0.35em",

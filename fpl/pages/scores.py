@@ -4,7 +4,6 @@ import reflex as rx
 
 from ..components.page_header import page_header
 from ..data.api import api_client, current_gameweek_id, get_fixtures
-from ..settings import settings
 from ..templates.template import template
 
 
@@ -12,7 +11,6 @@ class State(rx.State):
 
     data: list[dict] = []
     gameweek_id: int
-    missing_data: bool = False
 
     @rx.event(background=True)
     async def get_data(self):
@@ -25,11 +23,10 @@ class State(rx.State):
                 with api_client() as client:
 
                     fixtures_df = get_fixtures(client, self.gameweek_id)
-                    self.missing_data = fixtures_df.is_empty()
 
                 self.data = fixtures_df.to_dicts()
 
-            await asyncio.sleep(settings.refresh_interval_secs)
+            await asyncio.sleep(5)
 
     @rx.event()
     def set_gameweek(self):
@@ -103,18 +100,6 @@ def responsive_grid() -> rx.Component:
     )
 
 
-def missing_data_callout() -> rx.Component:
-    """
-    Returns a callout
-    """
-
-    return rx.callout(
-        f"Fixtures unavailable for gameweek {State.gameweek_id}",
-        icon="info",
-        color_scheme="blue",
-    )
-
-
 @template(route="/live-scores", title="Live Scores", on_load=[State.set_gameweek, State.get_data])
 def scores():
     """
@@ -123,11 +108,7 @@ def scores():
 
     return rx.flex(
         page_header("Live Scores", State.gameweek_id),
-        rx.cond(
-            State.missing_data,
-            missing_data_callout(),
-            responsive_grid()
-        ),
+        responsive_grid(),
         direction="column",
         spacing="4",
         width="100%"

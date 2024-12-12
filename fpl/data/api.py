@@ -74,6 +74,14 @@ def get_entry_picks(client: httpx.Client, entry_id: int, gameweek_id: int) -> pl
         "element": "player_id"
     }
 
+    return_cols = (
+        "entry_id",
+        "player_id",
+        "position",
+        "multiplier",
+        "is_captain"
+    )
+
     try:
         api_data = client.get(f"entry/{entry_id}/event/{gameweek_id}/picks/").json()["picks"]
 
@@ -81,6 +89,7 @@ def get_entry_picks(client: httpx.Client, entry_id: int, gameweek_id: int) -> pl
             pl.DataFrame(api_data)
             .with_columns(entry_id=entry_id)
             .rename(col_map)
+            .select(return_cols)
         )
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code == 404:

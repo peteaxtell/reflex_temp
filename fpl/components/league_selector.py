@@ -12,7 +12,7 @@ class League:
 class LeagueSelectState(rx.State):
 
     leagues: list[League] = [
-        League(id="464405 ", name="SS Ladzio league"),
+        League(id="464405", name="SS Ladzio league"),
         League(id="737576", name="The Ladzio Memorial Cup"),
         League(id="1643181", name="The Oscar & Milo Championship"),
     ]
@@ -31,22 +31,22 @@ class LeagueSelectState(rx.State):
         self.set_selected_league(form_data["selected"])
 
 
-def league_badge() -> rx.Component:
+def selected_league_badge() -> rx.Component:
     """
     Returns a badge showing the selected league
     """
 
     return rx.center(
         rx.flex(
+            league_selector_dialog(),
             rx.badge(LeagueSelectState.league_display_value, margin="2", size="2"),
-            league_dialog(),
             spacing="2",
             width="100%"
         )
     )
 
 
-def league_dialog() -> rx.Component:
+def league_selector_dialog() -> rx.Component:
     """
     Returns a dialog for selecting a league
     """
@@ -73,18 +73,13 @@ def league_dialog() -> rx.Component:
                         width="100%"
                     ),
                     rx.hstack(
-                        rx.button(
-                            "Save",
-                            type="submit",
-                            height="30px",
-                            width="70px",
-                        ),
                         rx.dialog.close(
                             rx.button(
-                                "Close",
+                                "Save",
+                                type="submit",
                                 height="30px",
                                 width="70px",
-                            ),
+                            )
                         ),
                         justify="end",
                     ),

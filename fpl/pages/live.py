@@ -4,12 +4,12 @@ import polars as pl
 import reflex as rx
 from reflex_ag_grid.ag_grid import ColumnDef, ag_grid
 
-from ..components.league_picker import LeagueSelectState
+from ..components.callout import callout
+from ..components.league_selector import LeagueSelectState
 from ..components.page_header import page_header
 from ..data.api import (api_client, current_gameweek_id, get_league_picks,
                         get_league_table, get_player_points,
                         latest_player_activity)
-from ..settings import settings
 from ..templates.template import template
 
 
@@ -55,7 +55,7 @@ class State(rx.State):
 
                         self.player_points_cache = live_player_points_df.to_dicts()
 
-            await asyncio.sleep(settings.refresh_interval_secs)
+            await asyncio.sleep(5)
 
     @rx.event()
     def set_gameweek(self):
@@ -149,18 +149,6 @@ def responsive_grid() -> rx.Component:
     return rx.inset(
         rx.mobile_only(grid(True)),
         rx.tablet_and_desktop(grid(False)),
-    )
-
-
-def callout(text: str) -> rx.Component:
-    """
-    Returns a callout
-    """
-
-    return rx.callout(
-        text,
-        icon="info",
-        color_scheme="blue",
     )
 
 

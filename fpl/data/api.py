@@ -139,10 +139,13 @@ def get_fixtures(client: httpx.Client, gameweek_id: int) -> pl.DataFrame:
 
     api_data = client.get("fixtures/").json()
 
+    df = pl.DataFrame(api_data).filter(pl.col("event") == gameweek_id)
+
+    if df.is_empty():
+        return pl.DataFrame()
+
     return (
-        pl.DataFrame(api_data)
-        .filter(pl.col("event") == gameweek_id)
-        .with_columns(kickoff_time)
+        df.with_columns(kickoff_time)
         .with_columns(status)
         .rename(col_map)
         .join(TEAMS_DF, left_on="away_team_id", right_on="team_id")
@@ -188,7 +191,7 @@ def get_league_picks(client: httpx.Client, gameweek_id: int, league_df: pl.DataF
     )
 
 
-def get_league_table(client: httpx.Client) -> pl.DataFrame:
+def get_league_table(client: httpx.Client, league_id: int) -> pl.DataFrame:
     """
     Returns the current league table
     """
@@ -205,7 +208,7 @@ def get_league_table(client: httpx.Client) -> pl.DataFrame:
         "total"
     )
 
-    api_data = client.get("leagues-classic/737576/standings/").json()["standings"]["results"]
+    api_data = client.get(f"leagues-classic/{league_id}/standings/").json()["standings"]["results"]
 
     return (
         pl.DataFrame(api_data)

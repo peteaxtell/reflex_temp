@@ -9,6 +9,7 @@ from ..components.page_header import page_header
 from ..data.api import (api_client, current_gameweek_id, get_league_picks,
                         get_league_table, get_player_points,
                         latest_player_activity)
+from ..settings import settings
 from ..templates.template import template
 
 
@@ -53,7 +54,7 @@ class State(rx.State):
 
                     self.player_points_cache = live_player_points_df.to_dicts()
 
-            await asyncio.sleep(500)
+            await asyncio.sleep(settings.refresh_interval_secs)
 
     @rx.event()
     def set_gameweek(self):

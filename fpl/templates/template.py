@@ -44,16 +44,6 @@ def template(
                     flex_grow=1,
                     **styles.template_content_style,
                 ),
-                # rx.flex(
-                #     rx.vstack(
-                #         page_content(),
-                #         width="100%",
-                #         **styles.template_content_style,
-                #     ),
-                #     width="100%",
-                #     **styles.template_page_style,
-                #     max_width=rx.breakpoints(initial="100%", md=styles.max_width),
-                # ),
                 navbar(),
                 flex_direction=rx.breakpoints(initial="column", md="row"),
                 width="100%",

@@ -323,7 +323,7 @@ def latest_player_activity(cache: pl.DataFrame, unique_player_points: pl.DataFra
     return_fields = (
         "id",
         "event",
-        "img_url"
+        "img_url",
         "player",
         "points",
         "position",

@@ -12,7 +12,14 @@ def navbar_item(url: str, icon: str) -> rx.Component:
     )
 
     return rx.link(
-        rx.icon(icon, size=22),
+        rx.cond(
+            active,
+            rx.image(src=f"/icons/{icon}_active.png", width="28px"),
+            rx.color_mode_cond(
+                rx.image(src=f"/icons/{icon}_light_mode.png", width="28px"),
+                rx.image(src=f"/icons/{icon}_dark_mode.png", width="28px"),
+            )
+        ),
         color=rx.cond(
             active,
             styles.accent_text_color,
@@ -36,9 +43,9 @@ def navbar() -> rx.Component:
 
     return rx.flex(
         rx.hstack(
-            navbar_item("/", "list-ordered"),
-            navbar_item("/live-scores", "goal"),
-            navbar_item("/live-updates", "rss"),
+            navbar_item("/", "league"),
+            navbar_item("/live-scores", "score"),
+            navbar_item("/live-updates", "notification"),
             rx.color_mode.button(style={"opacity": "0.8", "scale": "0.95"}),
             align="center",
             justify="center",

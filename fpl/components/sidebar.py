@@ -38,7 +38,14 @@ def sidebar_item(text: str, url: str, icon: str) -> rx.Component:
 
     return rx.link(
         rx.hstack(
-            rx.icon(icon, size=22),
+            rx.cond(
+                active,
+                rx.image(src=f"/icons/{icon}_active.png", width="28px"),
+                rx.color_mode_cond(
+                    rx.image(src=f"/icons/{icon}_light_mode.png", width="28px"),
+                    rx.image(src=f"/icons/{icon}_dark_mode.png", width="28px"),
+                )
+            ),
             rx.text(text, size="3", weight="regular"),
             color=rx.cond(
                 active,
@@ -83,9 +90,9 @@ def sidebar() -> rx.Component:
         rx.vstack(
             sidebar_header(),
             rx.vstack(
-                sidebar_item("League Table", "/", "list-ordered"),
-                sidebar_item("Live Scores", "/live-scores", "goal"),
-                sidebar_item("Live Updates", "/live-updates", "rss"),
+                sidebar_item("League Table", "/", "league"),
+                sidebar_item("Live Scores", "/live-scores", "score"),
+                sidebar_item("Live Updates", "/live-updates", "notification"),
                 spacing="1",
                 width="100%",
             ),

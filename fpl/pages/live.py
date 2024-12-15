@@ -16,6 +16,7 @@ from ..templates.template import template
 class State(rx.State):
 
     gameweek_id: int
+    # live_update_cards: list[rx.Component]
     live_update_data: list[dict] = []
     player_points_cache: list[dict] = []
 
@@ -55,6 +56,8 @@ class State(rx.State):
 
                         self.player_points_cache = live_player_points_df.to_dicts()
 
+                        # self.live_update_cards = [card(event) for event in live_player_points_df.to_dicts()]
+
             await asyncio.sleep(5)
 
     @rx.event()
@@ -77,7 +80,7 @@ badge = rx.vars.function.ArgsFunctionOperation.create(
 player = rx.vars.function.ArgsFunctionOperation.create(
     ("params",),
     rx.flex(
-        rx.image(class_name="player_pill_img", src=rx.Var("params.data.img_url", _var_type=str), margin_bottom=5),
+        rx.image(class_name="player_pill_img", src=rx.Var("params.data.img_url", _var_type=str), margin_bottom=9),
         rx.Var("params.value", _var_type=str),
         class_name="player_pill_ag",
         direction="column"
@@ -123,6 +126,34 @@ def col_defs(mobile: bool) -> list[ColumnDef]:
     return cols
 
 
+def card(data: dict[str, any]) -> rx.Component:
+    """
+    Returns card containing the point updates for a player
+    """
+
+    return rx.card(
+        rx.hstack(
+            rx.image(data["img_url"], height="40px"),
+            rx.vstack(
+                rx.text(data["player"]),
+                rx.text(data["team"])
+            ),
+            rx.badge(data["event"])
+        )
+    )
+
+
+def cards() -> rx.Component:
+    """
+    Returns cards showing player point updates
+    """
+
+    return rx.flex(
+        rx.foreach(State.live_update_data, card),
+        direction="column"
+    )
+
+
 def grid(mobile: bool) -> rx.Component:
     """
     Returns an AG Grid
@@ -135,7 +166,7 @@ def grid(mobile: bool) -> rx.Component:
         height="calc(100dvh - 240px)",
         overflow="auto",
         row_data=State.live_update_data,
-        style={"--ag-row-height": "75px !important;"},
+        style={"--ag-row-height": "105px !important;"},
         theme="quartz",
         width="100%",
     )
@@ -147,8 +178,8 @@ def responsive_grid() -> rx.Component:
     """
 
     return rx.inset(
-        rx.mobile_only(grid(True)),
-        rx.tablet_and_desktop(grid(False)),
+        rx.mobile_only(cards()),
+        rx.tablet_and_desktop(grid(False))
     )
 
 

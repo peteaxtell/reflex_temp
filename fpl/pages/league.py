@@ -116,8 +116,8 @@ def col_defs(mobile: bool) -> list[ColumnDef]:
     ]
 
     if mobile:
-        cols[3].max_width = 100
-        cols[4].max_width = 100
+        cols[3].max_width = 110
+        cols[4].max_width = 110
 
     return cols
 

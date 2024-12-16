@@ -16,7 +16,6 @@ from ..templates.template import template
 class State(rx.State):
 
     gameweek_id: int
-    # live_update_cards: list[rx.Component]
     live_update_data: list[dict] = []
     player_points_cache: list[dict] = []
 
@@ -46,7 +45,6 @@ class State(rx.State):
 
                         # can only work out new points if already have previous points in cache after first run
                         if self.player_points_cache:
-
                             latest_activity_df = latest_player_activity(pl.DataFrame(
                                 self.player_points_cache.copy()), live_player_points_df, len(self.live_update_data))
 
@@ -55,8 +53,6 @@ class State(rx.State):
                                     self.live_update_data + latest_activity_df.to_dicts(), key=lambda x: x["id"], reverse=True)
 
                         self.player_points_cache = live_player_points_df.to_dicts()
-
-                        # self.live_update_cards = [card(event) for event in live_player_points_df.to_dicts()]
 
             await asyncio.sleep(5)
 
@@ -133,13 +129,24 @@ def card(data: dict[str, any]) -> rx.Component:
 
     return rx.card(
         rx.hstack(
-            rx.image(data["img_url"], height="40px"),
+            rx.text(data["time"], size="1"),
+            rx.image(data["img_url"], height="60px"),
             rx.vstack(
-                rx.text(data["player"]),
-                rx.text(data["team"])
+                rx.text(data["player"], size="2"),
+                rx.text(data["team"], size="1"),
+                flex_grow="1",
+                height="100%",
+                justify="center",
+                spacing="1"
             ),
-            rx.badge(data["event"])
-        )
+            rx.vstack(
+                rx.badge(data["event"], size="2"),
+                rx.badge(data["total_points"], size="2"),
+                align="end",
+                spacing="1"
+            ),
+            align="center"
+        ),
     )
 
 

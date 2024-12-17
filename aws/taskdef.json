@@ -18,15 +18,6 @@
             "environment": [],
             "mountPoints": [],
             "volumesFrom": [],
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-create-group": "true",
-                    "awslogs-group": "/ecs/fpl-taskdef",
-                    "awslogs-region": "eu-north-1",
-                    "awslogs-stream-prefix": "ecs"
-                }
-            }
         }
     ],
     "executionRoleArn": "arn:aws:iam::588738613515:role/ecsTaskExecutionRole",

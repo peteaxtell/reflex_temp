@@ -17,7 +17,7 @@
             "essential": true,
             "environment": [],
             "mountPoints": [],
-            "volumesFrom": [],
+            "volumesFrom": []
         }
     ],
     "executionRoleArn": "arn:aws:iam::588738613515:role/ecsTaskExecutionRole",

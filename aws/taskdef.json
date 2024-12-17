@@ -12,6 +12,13 @@
                     "hostPort": 3000,
                     "protocol": "tcp",
                     "appProtocol": "http"
+                },
+                {
+                    "name": "fpl-8000-tcp",
+                    "containerPort": 8000,
+                    "hostPort": 8000,
+                    "protocol": "tcp",
+                    "appProtocol": "http"
                 }
             ],
             "essential": true,

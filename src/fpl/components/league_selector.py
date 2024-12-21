@@ -15,7 +15,7 @@ class LeagueSelectState(rx.State):
         League(id="737576", name="The Ladzio Memorial Cup"),
     ]
 
-    selected_league: League | None = leagues[1]
+    selected_league: League | None = leagues[0]
 
     def set_selected_league(self, league_id: str):
         self.selected_league = next((l for l in self.leagues if l.id == league_id), None)

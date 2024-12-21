@@ -1,4 +1,3 @@
-import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
@@ -50,13 +49,9 @@ def get_entry_points_history(client: httpx.Client, entry_id: int, gameweek_id: i
 
     try:
         if gameweek_id:
-            # api_data = client.get(f"entry/{entry_id}/event/{gameweek_id}/picks/").json()["entry_history"]
-            with open(fr"C:\Users\pda\Python\code\reflex_temp\src\fpl\data\__mock\entry_points_history_{entry_id}_{gameweek_id}.json", "r") as f:
-                api_data = json.loads(f.read())
+            api_data = client.get(f"entry/{entry_id}/event/{gameweek_id}/picks/").json()["entry_history"]
         else:
-            # api_data = client.get(f"entry/{entry_id}/history/").json()["current"]
-            with open(fr"C:\Users\pda\Python\code\reflex_temp\src\fpl\data\__mock\entry_points_history_{entry_id}.json", "r") as f:
-                api_data = json.loads(f.read())
+            api_data = client.get(f"entry/{entry_id}/history/").json()["current"]
         return (
             pl.DataFrame(api_data)
             .with_columns(entry_id=entry_id)
@@ -91,9 +86,7 @@ def get_entry_picks(client: httpx.Client, entry_id: int, gameweek_id: int) -> pl
     )
 
     try:
-        # api_data = client.get(f"entry/{entry_id}/event/{gameweek_id}/picks/").json()["picks"]
-        with open(fr"C:\Users\pda\Python\code\reflex_temp\src\fpl\data\__mock\entry_picks.json", "r") as f:
-            api_data = json.loads(f.read())
+        api_data = client.get(f"entry/{entry_id}/event/{gameweek_id}/picks/").json()["picks"]
 
         return (
             pl.DataFrame(api_data)
@@ -154,9 +147,7 @@ def get_fixtures(client: httpx.Client, gameweek_id: int) -> pl.DataFrame:
     )
 
     try:
-        # api_data = client.get("fixtures/").json()
-        with open(fr"C:\Users\pda\Python\code\reflex_temp\src\fpl\data\__mock\fixtures.json", "r") as f:
-            api_data = json.loads(f.read())
+        api_data = client.get("fixtures/").json()
 
         df = pl.DataFrame(api_data).filter(pl.col("event") == gameweek_id)
 
@@ -237,9 +228,7 @@ def get_league_table(client: httpx.Client, league_id: int) -> pl.DataFrame:
     )
 
     try:
-        # api_data = client.get(f"leagues-classic/{league_id}/standings/").json()["standings"]["results"]
-        with open(fr"C:\Users\pda\Python\code\reflex_temp\src\fpl\data\__mock\leage_table.json", "r") as f:
-            api_data = json.loads(f.read())
+        api_data = client.get(f"leagues-classic/{league_id}/standings/").json()["standings"]["results"]
 
         return (
             pl.DataFrame(api_data)
@@ -282,9 +271,7 @@ def get_player_points(client: httpx.Client, gameweek_id: int) -> pl.DataFrame:
     )
 
     try:
-        # api_data = client.get(f"event/{gameweek_id}/live/").json()["elements"]
-        with open(fr"C:\Users\pda\Python\code\reflex_temp\src\fpl\data\__mock\live_points.json", "r") as f:
-            api_data = json.loads(f.read())
+        api_data = client.get(f"event/{gameweek_id}/live/").json()["elements"]
 
         return (
             pl.json_normalize(api_data)
@@ -299,32 +286,37 @@ def get_player_points(client: httpx.Client, gameweek_id: int) -> pl.DataFrame:
         raise Exception(f"Error getting live points for gameweek {gameweek_id}")
 
 
-def get_transfers(client: httpx.Client, entry_id: int, gameweek_id: int) -> pl.DataFrame:
+def get_transfers(client: httpx.Client, entry_id: int, gameweek_id: int, league_df: pl.DataFrame) -> pl.DataFrame | None:
     """
     Returns the tranfers made by each entry in the current gameweek
     """
     from .cache import PLAYERS_DF
 
-    col_map = {
-        "entry": "entry_id",
-        "event": "gameweek_id"
-    }
-
     return_fields = (
         "entry_id",
+        "manager_name",
         "web_name_in",
-        "web_name_out"
+        "img_url_in",
+        "web_name_out",
+        "img_url_out",
     )
 
     try:
         api_data = client.get(f"entry/{entry_id}/transfers/").json()
 
+        if not api_data:
+            return None
+
         return (
             pl.DataFrame(api_data)
             .filter(pl.col("event") == gameweek_id)
-            .join(PLAYERS_DF, on="element_in", suffix="in")
-            .join(PLAYERS_DF, on="element_out", suffix="out")
-            .rename(col_map)
+            .rename({"entry": "entry_id"})
+            .with_columns(pl.col("entry_id").cast(pl.Int32))
+            .join(league_df, on="entry_id")
+            .join(PLAYERS_DF, left_on="element_in", right_on="player_id")
+            .rename({"web_name": "web_name_in", "img_url": "img_url_in"})
+            .join(PLAYERS_DF, left_on="element_out", right_on="player_id", suffix="_out")
+            .rename({"web_name": "web_name_out", "img_url": "img_url_out"})
             .select(return_fields)
         )
     except httpx.HTTPStatusError as exc:

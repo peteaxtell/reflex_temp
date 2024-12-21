@@ -93,6 +93,7 @@ def sidebar() -> rx.Component:
                 sidebar_item("League Table", "/", "league"),
                 sidebar_item("Live Scores", "/live-scores", "score"),
                 sidebar_item("Live Updates", "/live-updates", "notification"),
+                sidebar_item("Transfers", "/transfers", "transfer"),
                 spacing="1",
                 width="100%",
             ),

@@ -135,9 +135,7 @@ def cache_data():
     from .api import api_client
 
     with api_client() as client:
-        # bootstrap_data = client.get("bootstrap-static/").json()
-        with open(r"C:\Users\pda\Python\code\reflex_temp\src\fpl\data\__mock\bootstrap.json", "r") as f:
-            bootstrap_data = json.loads(f.read())
+        bootstrap_data = client.get("bootstrap-static/").json()
 
     _cache_teams(bootstrap_data["teams"])
     _cache_players(bootstrap_data["elements"], bootstrap_data["element_types"])

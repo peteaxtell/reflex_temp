@@ -12,9 +12,7 @@ class League:
 class LeagueSelectState(rx.State):
 
     leagues: list[League] = [
-        League(id="464405", name="SS Ladzio league"),
         League(id="737576", name="The Ladzio Memorial Cup"),
-        League(id="1643181", name="The Oscar & Milo Championship"),
     ]
 
     selected_league: League | None = leagues[1]

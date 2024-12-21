@@ -8,8 +8,9 @@ from reflex_ag_grid.ag_grid import ColumnDef, ag_grid
 from ..components.callout import callout
 from ..components.league_selector import LeagueSelectState
 from ..components.page_header import page_header
-from ..data.api import (api_client, current_gameweek_id, get_entry_points,
-                        get_league_picks, get_league_table, get_player_points)
+from ..data.api import (api_client, current_gameweek_id,
+                        get_entry_points_history, get_league_picks,
+                        get_league_table, get_player_points)
 from ..templates.template import template
 
 
@@ -48,7 +49,7 @@ class State(rx.State):
 
                         # get points from previous gameweek for each entry
                         with ThreadPoolExecutor() as executor:
-                            prev_gw_points_df = list(executor.map(lambda entry_id: get_entry_points(
+                            prev_gw_points_df = list(executor.map(lambda entry_id: get_entry_points_history(
                                 client, entry_id, self.gameweek_id-1), league_df["entry_id"].to_list()))
 
                         prev_gw_points_df = (

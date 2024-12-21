@@ -46,6 +46,7 @@ def navbar() -> rx.Component:
             navbar_item("/", "league"),
             navbar_item("/live-scores", "score"),
             navbar_item("/live-updates", "notification"),
+            navbar_item("/transfers", "transfer"),
             rx.color_mode.button(style={"opacity": "0.8", "scale": "0.95"}),
             align="center",
             justify="center",

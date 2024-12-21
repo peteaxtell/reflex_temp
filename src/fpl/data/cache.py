@@ -1,3 +1,5 @@
+import json
+
 import polars as pl
 
 GAMEWEEKS_DF = None

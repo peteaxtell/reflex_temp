@@ -91,7 +91,7 @@ def grid(mobile: bool) -> rx.Component:
 
 def responsive_grid() -> rx.Component:
     """
-    Returns an AG Grid with columns based on screen size
+    Returns a grid with columns based on screen size
     """
 
     return rx.inset(

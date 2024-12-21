@@ -115,7 +115,7 @@ def grid(mobile: bool) -> rx.Component:
 
     return rx.grid(
         rx.foreach(State.data.items(), card),
-        columns=("2" if mobile else "4"),
+        columns=("1" if mobile else "4"),
         spacing=("2" if mobile else "4")
     )
 

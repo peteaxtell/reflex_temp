@@ -157,7 +157,8 @@ def cards() -> rx.Component:
 
     return rx.flex(
         rx.foreach(State.live_update_data, card),
-        direction="column"
+        direction="column",
+        spacing="2",
     )
 
 

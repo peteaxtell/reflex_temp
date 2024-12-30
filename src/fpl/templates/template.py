@@ -49,6 +49,7 @@ def template(
                 width="100%",
                 margin="auto",
                 position="relative",
+                style={"background-color": styles.background_color},
             ),
 
         @rx.page(

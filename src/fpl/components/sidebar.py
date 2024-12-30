@@ -99,6 +99,7 @@ def sidebar() -> rx.Component:
             ),
             rx.spacer(),
             sidebar_footer(),
+            bg=styles.nav_bar_background_color,
             justify="end",
             align="end",
             width=styles.sidebar_content_width,

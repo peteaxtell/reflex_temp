@@ -132,7 +132,7 @@ def card(data: dict[str, any]) -> rx.Component:
             rx.text(data["time"], size="1"),
             rx.image(data["img_url"], height="60px"),
             rx.vstack(
-                rx.text(data["player"], size="2"),
+                rx.text(data["player"], size="1"),
                 rx.text(data["team"], size="1"),
                 flex_grow="1",
                 height="100%",

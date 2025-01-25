@@ -15,11 +15,11 @@ CLEAN_SHEET_POINTS = {
 
 SCORING_CONFIG = (
     # played 60 minutes
-    {
-        "filter": (pl.col("stats.minutes").gt(pl.col("stats.minutes_cache"))) & (pl.col("stats.minutes").gt(60)),
-        "event": "Played 60 Minutes",
-        "points": 1
-    },
+    # {
+    #     "filter": (pl.col("stats.minutes").gt(pl.col("stats.minutes_cache"))) & (pl.col("stats.minutes").gt(60)),
+    #     "event": "Played 60 Minutes",
+    #     "points": 1
+    # },
     # clean sheet
     {
         "filter": (pl.col("stats.clean_sheets").gt(pl.col("stats.clean_sheets_cache"))) & (pl.col("position_name").is_in(CLEAN_SHEET_POINTS.keys())),

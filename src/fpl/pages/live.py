@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 
 import polars as pl
 import reflex as rx
@@ -16,8 +17,9 @@ from ..templates.template import template
 class State(rx.State):
 
     gameweek_id: int
-    live_update_data: list[dict] = []
+    live_update_data: list[dict[str, str]] = []
     player_points_cache: list[dict] = []
+    last_refreshed: str
 
     @rx.event(background=True)
     async def get_data(self):
@@ -26,6 +28,7 @@ class State(rx.State):
         """
 
         while True:
+
             async with self:
 
                 league_selector = await self.get_state(LeagueSelectState)
@@ -53,7 +56,7 @@ class State(rx.State):
                                     self.live_update_data + latest_activity_df.to_dicts(), key=lambda x: x["id"], reverse=True)
 
                         self.player_points_cache = live_player_points_df.to_dicts()
-
+                        self.last_refreshed = datetime.datetime.now().strftime("%H:%M:%S")
             await asyncio.sleep(5)
 
     @rx.event()
@@ -132,7 +135,7 @@ def card(data: dict[str, any]) -> rx.Component:
             rx.text(data["time"], size="1"),
             rx.image(data["img_url"], height="60px"),
             rx.vstack(
-                rx.text(data["player"], size="1"),
+                rx.text(data["player"], size="1", weight="bold"),
                 rx.text(data["team"], size="1"),
                 flex_grow="1",
                 height="100%",
@@ -140,7 +143,7 @@ def card(data: dict[str, any]) -> rx.Component:
                 spacing="1"
             ),
             rx.vstack(
-                rx.badge(data["event"], size="2"),
+                rx.badge(data["event"], size="2", color_scheme=data["badge_colour"]),
                 rx.badge(data["total_points"], size="2"),
                 align="end",
                 spacing="1"
@@ -199,6 +202,7 @@ def live():
 
     return rx.flex(
         page_header("Live Updates", State.gameweek_id),
+        rx.text(f"Refreshed: {State.last_refreshed}", size="2"),
         rx.cond(
             ~LeagueSelectState.selected_league,
             callout("Select a league to view live updates"),

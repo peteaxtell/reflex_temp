@@ -342,6 +342,7 @@ def latest_player_activity(cache: pl.DataFrame, unique_player_points: pl.DataFra
     return_fields = (
         "id",
         "event",
+        "badge_colour",
         "img_url",
         "player",
         "points",
@@ -370,6 +371,8 @@ def latest_player_activity(cache: pl.DataFrame, unique_player_points: pl.DataFra
             if not df.is_empty():
                 # add event description as new column
                 df = df.with_columns(event=pl.lit(config["event"]))
+                # add event badge colour as new column
+                df = df.with_columns(badge_colour=pl.lit(config["badge_colour"]))
                 # add absolute points if value is integer
                 if isinstance(config["points"], int):
                     df = df.with_columns(points=pl.lit(config["points"]))

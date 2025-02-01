@@ -42,7 +42,7 @@ def card_text(text: str | int) -> rx.Component:
     Returns text component for a score card
     """
 
-    return rx.text(text, size=rx.breakpoints(initial="1", md="3"), height="100%")
+    return rx.text(text, size=rx.breakpoints(initial="1", md="2"), height="100%")
 
 
 def card_row(img: str, team: str, score: int) -> rx.Component:
@@ -55,6 +55,7 @@ def card_row(img: str, team: str, score: int) -> rx.Component:
         rx.box(card_text(team), flex_grow=1),
         rx.box(card_text(score)),
         direction="row",
+        align_items="center",
         spacing="4",
         width="100%"
     )
@@ -67,7 +68,8 @@ def card(data: dict[str, any]) -> rx.Component:
 
     return rx.card(
         rx.vstack(
-            rx.text(data["status"], align="center", width="100%", size=rx.breakpoints(initial="1", md="3")),
+            rx.text(data["status"], align="center", margin_bottom=10,
+                    width="100%", size=rx.breakpoints(initial="1", md="2")),
             card_row(data["home_team_logo"], data["home_team_name"], data["home_team_score"]),
             card_row(data["away_team_logo"], data["away_team_name"], data["away_team_score"]),
             margin_left=rx.breakpoints(initial="7px", md="20px"),

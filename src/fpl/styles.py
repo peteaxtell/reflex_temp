@@ -2,8 +2,8 @@
 
 import reflex as rx
 
-background_color = rx.color_mode_cond(rx.color("gray", 1), "#212830")
-nav_bar_background_color = rx.color_mode_cond(rx.color("gray", 4), "#151b23")
+background_color = rx.color_mode_cond(rx.color("gray", 1), "#151b23")
+nav_bar_background_color = rx.color_mode_cond(rx.color("gray", 4), "#212830")
 border_radius = "var(--radius-2)"
 border = f"1px solid {rx.color('gray', 5)}"
 text_color = rx.color("gray", 11)

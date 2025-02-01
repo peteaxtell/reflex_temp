@@ -202,7 +202,7 @@ def live():
 
     return rx.flex(
         page_header("Live Updates", State.gameweek_id),
-        rx.text(f"Refreshed: {State.last_refreshed}", size="2"),
+        # rx.text(f"Refreshed: {State.last_refreshed}", size="2"),
         rx.cond(
             ~LeagueSelectState.selected_league,
             callout("Select a league to view live updates"),

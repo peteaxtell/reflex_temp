@@ -5,8 +5,6 @@ from typing import Callable
 import reflex as rx
 
 from .. import styles
-from ..components.navbar import navbar
-from ..components.sidebar import sidebar
 
 default_meta = [
     {
@@ -38,13 +36,13 @@ def template(
 
         def templated_page():
             return rx.flex(
-                sidebar(),
+                # sidebar(),
                 rx.box(
                     page_content(),
                     flex_grow=1,
                     **styles.template_content_style,
                 ),
-                navbar(),
+                # navbar(),
                 flex_direction=rx.breakpoints(initial="column", md="row"),
                 width="100%",
                 margin="auto",

@@ -101,7 +101,7 @@ def cards(data: list[dict]) -> rx.Component:
     return rx.flex(
         rx.foreach(data, card),
         direction="column",
-        spacing="4",
+        spacing="3",
         padding="0px 7px",
         width="100%",
     )
@@ -118,7 +118,7 @@ def player_summary(player: str, points: int, data: list[dict]) -> rx.Component:
         rx.divider(size="1", width="80%"),
         cards(data),
         direction="column",
-        spacing="5",
+        spacing="4",
         align="center",
         width="48%"
     )

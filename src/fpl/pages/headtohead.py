@@ -101,7 +101,7 @@ def cards(data: list[dict]) -> rx.Component:
     return rx.flex(
         rx.foreach(data, card),
         direction="column",
-        spacing="3",
+        spacing="2",
         padding="0px 7px",
         width="100%",
     )

@@ -17,7 +17,7 @@ sidebar_content_width = "16em"
 max_width = "1480px"
 
 template_content_style = {
-    "height": rx.breakpoints(initial="calc(100dvh - 4em)", md="100dvh"),
+    "height": rx.breakpoints(initial="calc(100dvh - 0em)", md="100dvh"),
     "overflow": "auto",
     "padding": "2em",
     "width": "100%"

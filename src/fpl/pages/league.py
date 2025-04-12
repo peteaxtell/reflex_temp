@@ -151,7 +151,7 @@ def responsive_grid() -> rx.Component:
     )
 
 
-@template(route="/", title="League Table", on_load=[State.set_gameweek, State.get_data])
+@template(route="/league", title="League Table", on_load=[State.set_gameweek, State.get_data])
 def league():
     """
     Returns the league standings page

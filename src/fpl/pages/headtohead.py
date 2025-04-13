@@ -235,7 +235,7 @@ class State(rx.State):
                     self.ollie_total = ollie_player_points["points"].sum()
                     self.pete_total = pete_player_points["points"].sum()
 
-                await asyncio.sleep(5)
+                await asyncio.sleep(60)
 
     @rx.event()
     def set_gameweek(self):

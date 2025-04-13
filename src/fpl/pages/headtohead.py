@@ -1,14 +1,175 @@
+
 import asyncio
 
 import polars as pl
 import reflex as rx
 
 from ..data.api import (api_client, current_gameweek_id, get_entry_picks,
-                        get_player_points)
-from ..templates.template import template
+                        get_fixtures, get_player_points)
+from ..templates import template
 
 OLLIE_ENTRY_ID = 1302247
 PETE_ENTRY_ID = 3722253
+
+MIN_PLAYERS = {
+    "Goalkeeper": 1,
+    "Defender": 3,
+    "Midfielder": 3,
+    "Forward": 1
+}
+
+
+def swap_players(df: pl.DataFrame, unused_players: pl.DataFrame, position_in: int) -> pl.DataFrame:
+
+    position_out = unused_players.row(0, named=True)["position"]
+
+    return (
+        df.with_columns(
+            pl.when(pl.col("position") == position_in)
+            .then(pl.lit(True))
+            .alias("is_sub")
+        )
+        .with_columns(
+            pl.when(pl.col("position") == position_out)
+            .then(pl.lit(0))
+            .when(pl.col("position") == position_in)
+            .then(pl.lit(1))
+            .otherwise(pl.col("multiplier"))
+            .alias("multiplier")
+        )
+        .with_columns(
+            pl.when(pl.col("position") == position_out)
+            .then(pl.lit(position_in))
+            .when(pl.col("position") == position_in)
+            .then(pl.lit(position_out))
+            .otherwise(pl.col("position"))
+            .alias("position")
+        )
+    )
+
+
+def used_minimum(df: pl.DataFrame, position: str) -> bool:
+
+    return df.filter(pl.col("played") & (pl.col("position_name") == position)).shape[0] >= MIN_PLAYERS[position]
+
+
+def unused_starters(df: pl.DataFrame, position: str) -> pl.DataFrame:
+    """
+    Returns players who are unused and not in the starting 11
+    """
+
+    return df.filter((pl.col("position") < 12) & (pl.col("unused")) & (pl.col("position_name") == position))
+
+
+def apply_substitutions(df: pl.DataFrame) -> pl.DataFrame:
+
+    for used_sub in df.filter(~pl.col("unused") & (pl.col("position").is_between(12, 15))).sort("position").iter_rows(named=True):
+
+        match used_sub["position_name"]:
+
+            case "Goalkeeper":
+
+                # substitute goalkeeper can be swapped for unused starting goalkeeper
+
+                unused_goalkeepers = unused_starters(df, "Goalkeeper")
+
+                if not unused_goalkeepers.is_empty():
+                    df = swap_players(df, unused_goalkeepers, used_sub["position"])
+
+            case "Defender":
+
+                # substitute defender can be swapped for unused starting defender
+
+                unused_defenders = unused_starters(df, "Defender")
+
+                if not unused_defenders.is_empty():
+                    df = swap_players(
+                        df, unused_defenders, used_sub["position"])
+                    continue
+
+                # substitute defender can be swapped for unused starting midfielder
+                # if sufficient number of used midfielders have played
+
+                unused_midfielders = unused_starters(df, "Midfielder")
+
+                if (not unused_midfielders.is_empty()) & used_minimum(df, "Midfielder"):
+                    df = swap_players(
+                        df, unused_midfielders, used_sub["position"])
+                    continue
+
+                # substitute defender can be swapped for unused starting forward
+                # if sufficient number of used forwards have played
+
+                unused_forwards = unused_starters(df, "Forward")
+
+                if (not unused_forwards.is_empty()) & used_minimum(df, "Forward"):
+                    df = swap_players(
+                        df, unused_forwards, used_sub["position"])
+                    continue
+
+            case "Midfielder":
+
+                # substitute midfielder can be swapped for unused starting defender
+                # if sufficient number of used defenders have played
+
+                unused_defenders = unused_starters(df, "Defender")
+
+                if (not unused_defenders.is_empty()) & used_minimum(df, "Defender"):
+                    df = swap_players(
+                        df, unused_defenders, used_sub["position"])
+                    continue
+
+                # substitute midfielder can be swapped for unused starting midfielder
+
+                unused_midfielders = unused_starters(df, "Midfielder")
+
+                if not unused_midfielders.is_empty():
+                    df = swap_players(
+                        df, unused_midfielders, used_sub["position"])
+                    continue
+
+                # substitute midfielder can be swapped for unused starting forward
+                # if sufficient number of used forwards have played
+
+                unused_forwards = unused_starters(df, "Forward")
+
+                if (not unused_forwards.is_empty()) & used_minimum(df, "Forward"):
+                    df = swap_players(
+                        df, unused_defenders, used_sub["position"])
+                    continue
+
+            case "Forward":
+
+                # substitute forward can be swapped for unused starting defender
+                # if sufficient number of used defenders have played
+
+                unused_defenders = unused_starters(df, "Defender")
+
+                if (not unused_defenders.is_empty()) & used_minimum(df, "Defender"):
+                    df = swap_players(
+                        df, unused_defenders, used_sub["position"])
+                    continue
+
+                # substitute forward can be swapped for unused starting midfielder
+                # if sufficient number of used midfielders have played
+
+                unused_midfielders = unused_starters(df, "Midfielder")
+
+                if (not unused_midfielders.is_empty()) & used_minimum(df, "Midfielder"):
+                    df = swap_players(
+                        df, unused_defenders, used_sub["position"])
+                    continue
+
+                # substitute forward can be swapped for unused starting forward
+
+                unused_forwards = unused_starters(df, "Forward")
+
+                if not unused_forwards.is_empty():
+                    df = swap_players(
+                        df, unused_forwards, used_sub["position"])
+                    continue
+
+    return df
 
 
 class State(rx.State):
@@ -25,42 +186,56 @@ class State(rx.State):
         Periodically get latest player points from the API
         """
 
-        from ..data.cache import PLAYERS_DF
+        from ..data.cache import PLAYERS_DF, TEAMS_DF
 
         while True:
             async with self:
 
                 with api_client() as client:
 
-                    points_df = get_player_points(client, self.gameweek_id)
+                    fixtures = get_fixtures(client, self.gameweek_id)
+                    home_fixtures = fixtures.rename({"home_team_id": "team_id"}).select(["team_id", "status"])
+                    away_fixtures = fixtures.rename({"away_team_id": "team_id"}).select(["team_id", "status"])
+
+                    team_fixtures = pl.concat((home_fixtures, away_fixtures)).group_by(
+                        "team_id").agg((pl.col("status") != "FT").sum().alias("remaining"))
+
+                    points_df = get_player_points(client, self.gameweek_id).join(
+                        PLAYERS_DF, on="player_id").join(team_fixtures, on="team_id")
+
+                    points_df = (
+                        points_df.with_columns(
+                            unused=(pl.col("stats.minutes") == 0) & (pl.col("remaining") == 0))
+                        .with_columns(played=pl.col("stats.minutes") > 0)
+                    )
 
                     ollie_players_df = get_entry_picks(client, OLLIE_ENTRY_ID, self.gameweek_id)
+                    ollie_player_points = ollie_players_df.join(points_df, on="player_id")
+                    ollie_player_points = ollie_player_points.with_columns(
+                        unused_starter=((pl.col("position") < 12) & (pl.col("unused"))))
+                    ollie_player_points = apply_substitutions(ollie_player_points)
+                    ollie_player_points = ollie_player_points.filter(pl.col("position") < 12).rename(
+                        {"stats.total_points": "points"}).sort("position")
+                    ollie_player_points = ollie_player_points.with_columns(
+                        pl.col("points").mul(pl.col("multiplier")))
+
                     pete_players_df = get_entry_picks(client, PETE_ENTRY_ID, self.gameweek_id)
+                    pete_player_points = pete_players_df.join(points_df, on="player_id")
+                    pete_player_points = pete_player_points.with_columns(
+                        unused_starter=((pl.col("position") < 12) & (pl.col("unused"))))
+                    pete_player_points = apply_substitutions(pete_player_points)
+                    pete_player_points = pete_player_points.filter(pl.col("position") < 12).rename(
+                        {"stats.total_points": "points"}).sort("position")
+                    pete_player_points = pete_player_points.with_columns(
+                        pl.col("points").mul(pl.col("multiplier")))
 
-                    ollie_player_points = (ollie_players_df
-                                           .join(points_df, on="player_id")
-                                           )
+                    self.ollie_data = ollie_player_points.to_dicts()
+                    self.pete_data = pete_player_points.to_dicts()
 
-                    pete_player_points = (pete_players_df
-                                          .join(points_df, on="player_id")
-                                          )
+                    self.ollie_total = ollie_player_points["points"].sum()
+                    self.pete_total = pete_player_points["points"].sum()
 
-                ollie_player_points = ollie_player_points.join(
-                    PLAYERS_DF, on="player_id").filter(pl.col("position") < 12).rename({"stats.total_points": "points"}).sort("position")
-
-                pete_player_points = pete_player_points.join(
-                    PLAYERS_DF, on="player_id").filter(pl.col("position") < 12).rename({"stats.total_points": "points"}).sort("position")
-
-                ollie_player_points = ollie_player_points.with_columns(pl.col("points").mul(pl.col("multiplier")))
-                pete_player_points = pete_player_points.with_columns(pl.col("points").mul(pl.col("multiplier")))
-
-                self.ollie_data = ollie_player_points.to_dicts()
-                self.pete_data = pete_player_points.to_dicts()
-
-                self.ollie_total = ollie_player_points["points"].sum()
-                self.pete_total = pete_player_points["points"].sum()
-
-            await asyncio.sleep(5)
+                await asyncio.sleep(5)
 
     @rx.event()
     def set_gameweek(self):
@@ -83,6 +258,10 @@ def card(data: dict[str, any]) -> rx.Component:
             rx.cond(
                 data["is_captain"],
                 rx.badge("C", size="1", color_scheme="green"),
+            ),
+            rx.cond(
+                data["is_sub"],
+                rx.badge(rx.icon("refresh-ccw", size=14), color_scheme="blue"),
             ),
             flex="1",
             spacing="1",

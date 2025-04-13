@@ -120,6 +120,8 @@ def get_fixtures(client: httpx.Client, gameweek_id: int) -> pl.DataFrame:
         "id",
         "kickoff_time",
         "status",
+        "home_team_id",
+        "away_team_id",
         "home_team_name",
         "home_team_score",
         "home_team_logo",

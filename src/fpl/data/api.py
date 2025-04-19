@@ -68,6 +68,37 @@ def get_entry_points_history(client: httpx.Client, entry_id: int, gameweek_id: i
         raise Exception(f"Error getting points history for entry {entry_id}")
 
 
+def get_entry_extras(client: httpx.Client, entry_id: int, gameweek_id: int) -> tuple[str | None, str]:
+    """
+    Returns the gameweek chips and transfer cost for an entry
+    """
+
+    chip = None
+    transfer_costs = 0
+
+    try:
+        api_data = client.get(f"entry/{entry_id}/history/").json()
+
+        chips_df = pl.DataFrame(api_data["chips"])
+        gameweek_chip = chips_df.filter(pl.col("event") == gameweek_id)
+
+        if not gameweek_chip.is_empty():
+            chip = chip.row(0, named="True")["name"]
+
+        current_df = pl.DataFrame(api_data["current"])
+        current_df = current_df.filter(pl.col("event") == gameweek_id)
+
+        transfer_costs = current_df.row(0, named=True)["event_transfers_cost"]
+
+        return (chip, str(transfer_costs))
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 404:
+            raise FplApiException(f"No selected players found for entry {entry_id}")
+        raise FplApiException(f"Error getting selected players for entry {entry_id} from Fantasy Premier League")
+    except Exception:
+        raise Exception(f"Error getting selected players for entry {entry_id}")
+
+
 def get_entry_picks(client: httpx.Client, entry_id: int, gameweek_id: int) -> pl.DataFrame:
     """
     Returns the gameweek picks for an entry

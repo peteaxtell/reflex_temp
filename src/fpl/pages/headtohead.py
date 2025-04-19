@@ -4,8 +4,8 @@ import asyncio
 import polars as pl
 import reflex as rx
 
-from ..data.api import (api_client, current_gameweek_id, get_entry_picks,
-                        get_fixtures, get_player_points)
+from ..data.api import (api_client, current_gameweek_id, get_entry_extras,
+                        get_entry_picks, get_fixtures, get_player_points)
 from ..templates import template
 
 OLLIE_ENTRY_ID = 1302247
@@ -174,8 +174,14 @@ def apply_substitutions(df: pl.DataFrame) -> pl.DataFrame:
 
 class State(rx.State):
 
-    ollie_data: list[dict] = []
-    pete_data: list[dict] = []
+    ollie_starters: list[dict] = []
+    ollie_subs: list[dict] = []
+    pete_starters: list[dict] = []
+    pete_subs: list[dict] = []
+    ollie_chip: str = ""
+    pete_chip: str = ""
+    ollie_transfers_cost: str = ""
+    pete_transfers_cost: str = ""
     ollie_total: int = 0
     pete_total: int = 0
     gameweek_id: int
@@ -193,6 +199,12 @@ class State(rx.State):
 
                 with api_client() as client:
 
+                    self.pete_chip, self.pete_transfers_cost = get_entry_extras(
+                        client, PETE_ENTRY_ID, self.gameweek_id)
+
+                    self.ollie_chip, self.ollie_transfers_cost = get_entry_extras(
+                        client, OLLIE_ENTRY_ID, self.gameweek_id)
+
                     fixtures = get_fixtures(client, self.gameweek_id)
                     home_fixtures = fixtures.rename({"home_team_id": "team_id"}).select(["team_id", "status"])
                     away_fixtures = fixtures.rename({"away_team_id": "team_id"}).select(["team_id", "status"])
@@ -203,39 +215,44 @@ class State(rx.State):
                     points_df = get_player_points(client, self.gameweek_id).join(
                         PLAYERS_DF, on="player_id").join(team_fixtures, on="team_id")
 
-                    points_df = (
-                        points_df.with_columns(
-                            unused=(pl.col("stats.minutes") == 0) & (pl.col("remaining") == 0))
-                        .with_columns(played=pl.col("stats.minutes") > 0)
-                    )
+                    # points_df = (
+                    #     points_df.with_columns(
+                    #         unused=(pl.col("stats.minutes") == 0) & (pl.col("remaining") == 0))
+                    #     .with_columns(played=pl.col("stats.minutes") > 0)
+                    # )
 
                     ollie_players_df = get_entry_picks(client, OLLIE_ENTRY_ID, self.gameweek_id)
                     ollie_player_points = ollie_players_df.join(points_df, on="player_id")
-                    ollie_player_points = ollie_player_points.with_columns(
-                        unused_starter=((pl.col("position") < 12) & (pl.col("unused"))))
-                    ollie_player_points = apply_substitutions(ollie_player_points)
-                    ollie_player_points = ollie_player_points.filter(pl.col("position") < 12).rename(
+                    # ollie_player_points = ollie_player_points.with_columns(
+                    #     unused_starter=((pl.col("position") < 12) & (pl.col("unused"))))
+                    # ollie_player_points = apply_substitutions(ollie_player_points)
+                    ollie_player_points = ollie_player_points.filter(pl.col("position") < 16).rename(
                         {"stats.total_points": "points"}).sort("position")
                     ollie_player_points = ollie_player_points.with_columns(
                         pl.col("points").mul(pl.col("multiplier")))
 
                     pete_players_df = get_entry_picks(client, PETE_ENTRY_ID, self.gameweek_id)
                     pete_player_points = pete_players_df.join(points_df, on="player_id")
-                    pete_player_points = pete_player_points.with_columns(
-                        unused_starter=((pl.col("position") < 12) & (pl.col("unused"))))
-                    pete_player_points = apply_substitutions(pete_player_points)
-                    pete_player_points = pete_player_points.filter(pl.col("position") < 12).rename(
+                    # pete_player_points = pete_player_points.with_columns(
+                    #     unused_starter=((pl.col("position") < 12) & (pl.col("unused"))))
+                    # pete_player_points = apply_substitutions(pete_player_points)
+                    pete_player_points = pete_player_points.filter(pl.col("position") < 16).rename(
                         {"stats.total_points": "points"}).sort("position")
                     pete_player_points = pete_player_points.with_columns(
                         pl.col("points").mul(pl.col("multiplier")))
 
-                    self.ollie_data = ollie_player_points.to_dicts()
-                    self.pete_data = pete_player_points.to_dicts()
+                    self.ollie_starters = ollie_player_points.to_dicts()[:11]
+                    self.ollie_subs = ollie_player_points.to_dicts()[11:]
+
+                    self.pete_starters = pete_player_points.to_dicts()[:11]
+                    self.pete_subs = pete_player_points.to_dicts()[11:]
 
                     self.ollie_total = ollie_player_points["points"].sum()
+                    self.ollie_total -= int(self.ollie_transfers_cost)
                     self.pete_total = pete_player_points["points"].sum()
+                    self.pete_total -= int(self.pete_transfers_cost)
 
-                await asyncio.sleep(60)
+            await asyncio.sleep(60)
 
     @rx.event()
     def set_gameweek(self):
@@ -252,7 +269,7 @@ def card(data: dict[str, any]) -> rx.Component:
     """
 
     return rx.hstack(
-        rx.image(data["img_url"], height="37px"),
+        rx.image(data["img_url"], height="25px"),
         rx.hstack(
             rx.text(data["web_name"], size="1"),
             rx.cond(
@@ -280,13 +297,13 @@ def cards(data: list[dict]) -> rx.Component:
     return rx.flex(
         rx.foreach(data, card),
         direction="column",
-        spacing="2",
+        spacing="1",
         padding="0px 7px",
         width="100%",
     )
 
 
-def player_summary(player: str, points: int, data: list[dict]) -> rx.Component:
+def player_summary(player: str, transfer_cost: str, points: int, starters: list[dict], subs: list[dict]) -> rx.Component:
     """
     Returns a column containing player photo, points and player points
     """
@@ -294,10 +311,14 @@ def player_summary(player: str, points: int, data: list[dict]) -> rx.Component:
     return rx.flex(
         rx.image(f"/{player}.jpeg", height="60px", width="60px", border_radius="50%"),
         rx.badge(points, size="2", color_scheme="green"),
+        rx.text("Point includes transfers cost of -" + transfer_cost, size="1", color_scheme="blue"),
+        # rx.text(player.capitalize(), size="1", font_weight="italic"),
         rx.divider(size="1", width="80%"),
-        cards(data),
+        cards(starters),
+        rx.divider(orientation="horizontal", size="2"),
+        cards(subs),
         direction="column",
-        spacing="4",
+        spacing="3",
         align="center",
         width="48%"
     )
@@ -310,9 +331,9 @@ def head_to_head():
     """
 
     return rx.flex(
-        player_summary("ollie", State.ollie_total, State.ollie_data),
+        player_summary("ollie", State.ollie_transfers_cost, State.ollie_total, State.ollie_starters, State.ollie_subs),
         rx.divider(orientation="vertical", size="2", height="calc(100dvh - 130px)"),
-        player_summary("pete", State.pete_total, State.pete_data),
+        player_summary("pete", State.pete_transfers_cost, State.pete_total, State.pete_starters, State.pete_subs),
         direction="row",
         spacing="4",
         width="100%"

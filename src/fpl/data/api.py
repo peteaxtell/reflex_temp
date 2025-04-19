@@ -83,7 +83,7 @@ def get_entry_extras(client: httpx.Client, entry_id: int, gameweek_id: int) -> t
         gameweek_chip = chips_df.filter(pl.col("event") == gameweek_id)
 
         if not gameweek_chip.is_empty():
-            chip = chip.row(0, named="True")["name"]
+            chip = gameweek_chip.row(0, named=True)["name"]
 
         current_df = pl.DataFrame(api_data["current"])
         current_df = current_df.filter(pl.col("event") == gameweek_id)

@@ -1,5 +1,6 @@
 
 import asyncio
+from datetime import datetime
 
 import polars as pl
 import reflex as rx
@@ -185,6 +186,7 @@ class State(rx.State):
     ollie_total: int = 0
     pete_total: int = 0
     gameweek_id: int
+    last_updated: datetime | None = None
 
     @rx.event(background=True)
     async def get_data(self):
@@ -251,6 +253,7 @@ class State(rx.State):
                     self.ollie_total -= int(self.ollie_transfers_cost)
                     self.pete_total = pete_player_points["points"].sum()
                     self.pete_total -= int(self.pete_transfers_cost)
+                    self.last_updated = datetime.now()
 
             await asyncio.sleep(60)
 
@@ -261,6 +264,14 @@ class State(rx.State):
         """
 
         self.gameweek_id = current_gameweek_id()
+
+    @rx.var
+    def refreshed_on(self) -> str:
+        """
+        Returns the last updated time formatted for display
+        """
+
+        return f"Last Updated: {self.last_updated.strftime("%H:%M:%S")}"
 
 
 def card(data: dict[str, any]) -> rx.Component:
@@ -311,7 +322,7 @@ def player_summary(player: str, transfer_cost: str, points: int, starters: list[
     return rx.flex(
         rx.image(f"/{player}.jpeg", height="60px", width="60px", border_radius="50%"),
         rx.badge(points, size="2", color_scheme="green"),
-        rx.text("Point includes transfers cost of -" + transfer_cost, size="1", color_scheme="blue"),
+        rx.text("Includes transfer cost -" + transfer_cost, size="1", color_scheme="blue"),
         # rx.text(player.capitalize(), size="1", font_weight="italic"),
         rx.divider(size="1", width="80%"),
         cards(starters),
@@ -331,10 +342,24 @@ def head_to_head():
     """
 
     return rx.flex(
-        player_summary("ollie", State.ollie_transfers_cost, State.ollie_total, State.ollie_starters, State.ollie_subs),
-        rx.divider(orientation="vertical", size="2", height="calc(100dvh - 130px)"),
-        player_summary("pete", State.pete_transfers_cost, State.pete_total, State.pete_starters, State.pete_subs),
-        direction="row",
-        spacing="4",
+        rx.hstack(
+            rx.badge("LIVE", size="1", color_scheme="blue"),
+            rx.text(State.refreshed_on, size="1"),
+            align="center",
+            justify="center",
+            width="100%",
+            height="30px",
+        ),
+        rx.flex(
+            player_summary("ollie", State.ollie_transfers_cost, State.ollie_total,
+                           State.ollie_starters, State.ollie_subs),
+            rx.divider(orientation="vertical", size="2", height="calc(100dvh - 130px)"),
+            player_summary("pete", State.pete_transfers_cost, State.pete_total, State.pete_starters, State.pete_subs),
+            direction="row",
+            spacing="4",
+            width="100%"
+        ),
+        direction="column",
+        spacing="2",
         width="100%"
     )

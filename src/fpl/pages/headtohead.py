@@ -1,7 +1,7 @@
 
 import asyncio
 from datetime import datetime
-
+from zoneinfo import ZoneInfo
 import polars as pl
 import reflex as rx
 
@@ -253,7 +253,7 @@ class State(rx.State):
                     self.ollie_total -= int(self.ollie_transfers_cost)
                     self.pete_total = pete_player_points["points"].sum()
                     self.pete_total -= int(self.pete_transfers_cost)
-                    self.last_updated = datetime.now()
+                    self.last_updated = datetime.now(ZoneInfo("Europe/London"))
 
             await asyncio.sleep(60)
 

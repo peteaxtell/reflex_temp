@@ -271,6 +271,8 @@ class State(rx.State):
         Returns the last updated time formatted for display
         """
 
+        if not self.last_updated:
+            return ""
         return f"Last Updated: {self.last_updated.strftime("%H:%M:%S")}"
 
 
